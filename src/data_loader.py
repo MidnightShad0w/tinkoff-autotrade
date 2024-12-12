@@ -21,24 +21,38 @@ def load_candles_from_csv(figi):
         return None
     df = pd.read_csv(file_path, parse_dates=['time'], index_col='time')
     print(f"Данные загружены из {file_path}")
+    print(df.head())
+    print(df.dtypes)
     return df
+
+
+def get_quotation_value(quotation):
+    return quotation.units + quotation.nano * 1e-9
 
 
 def fetch_and_save_candles(figi, days=100, interval='day'):
     to_date = datetime.utcnow()
     from_date = to_date - timedelta(days=days)
     candles = get_candles_custom(figi, from_=from_date, to=to_date, interval=interval)
+
     if not candles:
+        print("Свечи не найдены.")
         return
+
     data = {
         'time': [candle.time for candle in candles],
-        'open': [candle.o for candle in candles],
-        'high': [candle.h for candle in candles],
-        'low': [candle.l for candle in candles],
-        'close': [candle.c for candle in candles],
-        'volume': [candle.v for candle in candles],
+        'open': [get_quotation_value(candle.open) for candle in candles],
+        'high': [get_quotation_value(candle.high) for candle in candles],
+        'low': [get_quotation_value(candle.low) for candle in candles],
+        'close': [get_quotation_value(candle.close) for candle in candles],
+        'volume': [candle.volume for candle in candles],
     }
+
     df = pd.DataFrame(data)
     df['time'] = pd.to_datetime(df['time'])
     df.set_index('time', inplace=True)
+
+    print("Типы данных перед сохранением:")
+    print(df.dtypes)
+
     save_candles_to_csv(figi, df)

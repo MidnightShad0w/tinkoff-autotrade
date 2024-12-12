@@ -1,35 +1,55 @@
 import pandas as pd
+import numpy as np
 
 
-def simple_moving_average_strategy(df, short_window=20, long_window=50):
+def simple_moving_average_strategy(df, short_window=10, long_window=40):
     """
-    Простейшая стратегия на основе скользящих средних.
-    Генерирует сигналы покупки и продажи.
+    Реализует простую стратегию на основе пересечений скользящих средних.
     """
-    df['SMA_short'] = df['close'].rolling(window=short_window).mean()
-    df['SMA_long'] = df['close'].rolling(window=long_window).mean()
+    if short_window >= long_window:
+        raise ValueError("short_window должен быть меньше long_window.")
+
+    df['SMA_short'] = df['close'].rolling(window=short_window, min_periods=short_window).mean()
+    df['SMA_long'] = df['close'].rolling(window=long_window, min_periods=long_window).mean()
 
     df['Signal'] = 0
-    df.loc[df['SMA_short'] > df['SMA_long'], 'Signal'] = 1
-    df.loc[df['SMA_short'] < df['SMA_long'], 'Signal'] = -1
+
+    df.loc[
+        (df['SMA_short'] > df['SMA_long']) &
+        (df['SMA_short'].shift(1) <= df['SMA_long'].shift(1)),
+        'Signal'
+    ] = 1
+
+    df.loc[
+        (df['SMA_short'] < df['SMA_long']) &
+        (df['SMA_short'].shift(1) >= df['SMA_long'].shift(1)),
+        'Signal'
+    ] = -1
 
     return df
 
 
-def backtest_strategy(df):
+def backtest_strategy(df, initial_capital=100000, commission=0.001):
     """
-    Простая функция для бэктестинга стратегии.
+    Простейший бэктест для стратегии скользящих средних с учётом комиссии.
     """
-    df = df.copy().dropna()
-    df['Returns'] = df['close'].pct_change()
-    df['Strategy'] = df['Signal'].shift(1) * df['Returns']
+    df['Position'] = df['Signal'].replace(to_replace=0, method='ffill').shift(1)
+    df['Position'] = df['Position'].fillna(0)
 
-    cumulative_returns = (1 + df['Returns']).cumprod() - 1
-    cumulative_strategy = (1 + df['Strategy']).cumprod() - 1
+    df['Market Returns'] = df['close'].pct_change()
+    df['Strategy Returns'] = df['Market Returns'] * df['Position']
 
-    performance = pd.DataFrame({
-        'Cumulative Returns': cumulative_returns,
-        'Strategy Returns': cumulative_strategy
-    })
+    df['Trade'] = df['Signal'].diff().abs()
+    df['Strategy Returns'] -= df['Trade'] * commission
 
-    return performance
+    df['Cumulative Market Returns'] = (1 + df['Market Returns']).cumprod()
+    df['Cumulative Strategy Returns'] = (1 + df['Strategy Returns']).cumprod()
+
+    df['Cumulative Max'] = df['Cumulative Strategy Returns'].cummax()
+    df['Drawdown'] = df['Cumulative Max'] - df['Cumulative Strategy Returns']
+    df['Drawdown Percentage'] = df['Drawdown'] / df['Cumulative Max']
+
+    df['Strategy Profit'] = initial_capital * df['Cumulative Strategy Returns']
+    df['Market Profit'] = initial_capital * df['Cumulative Market Returns']
+
+    return df
