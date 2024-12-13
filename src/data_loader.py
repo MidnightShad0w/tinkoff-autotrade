@@ -22,7 +22,7 @@ def load_candles_from_csv(figi):
     df = pd.read_csv(file_path, parse_dates=['time'], index_col='time')
     print(f"Данные загружены из {file_path}")
     print(df.head())
-    print(df.dtypes)
+    # print(df.dtypes)
     return df
 
 
@@ -52,7 +52,7 @@ def fetch_and_save_candles(figi, days=100, interval='day'):
     df['time'] = pd.to_datetime(df['time'])
     df.set_index('time', inplace=True)
 
-    print("Типы данных перед сохранением:")
-    print(df.dtypes)
+    # print("Типы данных перед сохранением:")
+    # print(df.dtypes)
 
     save_candles_to_csv(figi, df)

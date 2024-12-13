@@ -13,9 +13,6 @@ if not TOKEN:
 
 
 def init_sandbox_account():
-    """
-    Создаёт аккаунт и возвращает его ID.
-    """
     try:
         with SandboxClient(TOKEN) as client:
             sandbox_account = client.sandbox.open_sandbox_account(name="danek")
@@ -34,9 +31,6 @@ def init_sandbox_account():
 
 
 def close_sandbox_account(account_id):
-    """
-    Закрывает аккаунт по его ID.
-    """
     try:
         with SandboxClient(TOKEN) as client:
             response = client.sandbox.close_sandbox_account(account_id=account_id)
@@ -46,9 +40,6 @@ def close_sandbox_account(account_id):
 
 
 def get_instruments_list():
-    """
-    Получает список доступных акций.
-    """
     try:
         with SandboxClient(TOKEN) as client:
             response = client.instruments.shares()
@@ -61,10 +52,6 @@ def get_instruments_list():
 
 
 def get_candles_custom(figi, from_, to, interval='day'):
-    """
-    Получает исторические котировки для заданного FIGI.
-    Использует перечисление CandleInterval для интервала.
-    """
     try:
         interval_map = {
             '1_min': CandleInterval.CANDLE_INTERVAL_1_MIN,

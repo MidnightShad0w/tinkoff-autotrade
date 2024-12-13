@@ -1,14 +1,15 @@
 from tinkoff_api import init_sandbox_account, get_instruments_list, close_sandbox_account
 from data_loader import fetch_and_save_candles, load_candles_from_csv
-from strategy import simple_moving_average_strategy, backtest_strategy
-from make_graphics import plot_strategy, plot_performance
+from strategy import simple_moving_average_strategy, backtest_strategy, rsi_strategy
+from make_graphics import plot_strategy, plot_performance, plot_rsi_strategy
 import pandas as pd
 from datetime import datetime, timedelta
 
 
 def main():
-    short_window = 10
-    long_window = 40
+    use_rsi_strategy = False
+    short_window = 5
+    long_window = 20
 
     account_id = init_sandbox_account()
     if not account_id:
@@ -18,31 +19,34 @@ def main():
     if not instruments:
         return
 
-    instrument = instruments[0]
+    instrument = instruments[222]  # выбор компании
+    print(instrument)
     figi = instrument.figi
     name = instrument.name
     print(f"Выбран инструмент: {name} (FIGI: {figi})")
 
     df = load_candles_from_csv(figi)
     if df is None:
-        fetch_and_save_candles(figi, days=500, interval='day')
+        fetch_and_save_candles(figi, days=200, interval='day')
         df = load_candles_from_csv(figi)
         if df is None:
             return
 
-    print("Типы данных после загрузки:")
-    print(df.dtypes)
+    # print("Типы данных после загрузки:")
+    # print(df.dtypes)
 
     try:
-        df = simple_moving_average_strategy(df, short_window=short_window, long_window=long_window)
+        if use_rsi_strategy:
+            df = rsi_strategy(df, rsi_window=14, rsi_overbought=70, rsi_oversold=30)
+            plot_rsi_strategy(df, name, rsi_window=14, rsi_overbought=70, rsi_oversold=30)
+        else:
+            df = simple_moving_average_strategy(df, short_window=short_window, long_window=long_window)
+            plot_strategy(df, name, short_window, long_window)
     except ValueError as e:
         print(f"Ошибка в стратегии: {e}")
         return
 
-    plot_strategy(df, name, short_window, long_window)
-
-    performance = backtest_strategy(df)
-
+    performance = backtest_strategy(df, initial_capital=100000, commission=0.001)
     plot_performance(performance)
 
     final_strategy_profit = performance['Strategy Profit'].iloc[-1]
